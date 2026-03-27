@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Profile information for editors, miniatureros, and YouTubers.",
+      "type": "object",
+      "properties": {
+        "nombre_completo": { "type": "string", "description": "Full name of the user." },
+        "email": { "type": "string", "format": "email", "description": "Email address." },
+        "rol": { "type": "string", "enum": ["editor", "miniaturero", "youtuber"], "description": "User role." },
+        "verificado_id": { "type": "boolean", "description": "Whether the user's ID is verified." },
+        "fecha_registro": { "type": "string", "format": "date-time", "description": "Registration date." },
+        "bio": { "type": "string", "description": "User biography." },
+        "especialidad": { "type": "string", "description": "User specialty." },
+        "precio_hora": { "type": "number", "description": "Hourly rate." },
+        "avatar": { "type": "string", "description": "Avatar image URL." },
+        "github_url": { "type": "string", "format": "uri", "description": "GitHub profile URL." },
+        "youtube_url": { "type": "string", "format": "uri", "description": "YouTube channel URL." },
+        "calificacion_avg": { "type": "number", "description": "Average rating." }
+      },
+      "required": ["nombre_completo", "email", "rol"]
+    },
+    "Portfolio": {
+      "title": "Portfolio",
+      "description": "A project in a user's portfolio.",
+      "type": "object",
+      "properties": {
+        "usuario_id": { "type": "string", "description": "The ID of the user who owns this project." },
+        "titulo": { "type": "string", "description": "Project title." },
+        "descripcion": { "type": "string", "description": "Project description." },
+        "url_video": { "type": "string", "format": "uri", "description": "Link to YouTube/Vimeo." },
+        "url_imagen": { "type": "string", "format": "uri", "description": "Thumbnail image URL." },
+        "tipo": { "type": "string", "enum": ["video", "thumbnail"], "description": "Project type." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation date." }
+      },
+      "required": ["usuario_id", "titulo", "tipo"]
+    },
+    "Contract": {
+      "title": "Contract",
+      "description": "A hiring contract between a client and a professional.",
+      "type": "object",
+      "properties": {
+        "cliente_id": { "type": "string", "description": "The ID of the client (youtuber)." },
+        "profesional_id": { "type": "string", "description": "The ID of the professional (editor/miniaturero)." },
+        "monto_total": { "type": "number", "description": "Total contract amount." },
+        "metodo_pago": { "type": "string", "enum": ["tarjeta", "paypal", "transferencia"], "description": "Payment method." },
+        "estado": { "type": "string", "enum": ["pendiente", "pagado", "en_proceso", "entregado"], "description": "Contract status." },
+        "fecha_contrato": { "type": "string", "format": "date-time", "description": "Contract date." }
+      },
+      "required": ["cliente_id", "profesional_id", "monto_total", "estado"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "An internal message between users.",
+      "type": "object",
+      "properties": {
+        "emisor_id": { "type": "string", "description": "Sender ID." },
+        "receptor_id": { "type": "string", "description": "Receiver ID." },
+        "mensaje": { "type": "string", "description": "Message content." },
+        "leido": { "type": "boolean", "description": "Whether the message has been read." },
+        "enviado_el": { "type": "string", "format": "date-time", "description": "Sent timestamp." }
+      },
+      "required": ["emisor_id", "receptor_id", "mensaje"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles." },
+    "/portfolios/{portfolioId}": { "schema": "Portfolio", "description": "Portfolio items." },
+    "/contracts/{contractId}": { "schema": "Contract", "description": "Hiring contracts." },
+    "/messages/{messageId}": { "schema": "Message", "description": "Direct messages." }
+  }
+}

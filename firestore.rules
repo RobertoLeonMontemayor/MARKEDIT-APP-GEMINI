@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId
+    // Fields:
+    //   - nombre_completo: string (required)
+    //   - email: string (required, email format)
+    //   - rol: string (required, enum: ['editor', 'miniaturero', 'youtuber'])
+    //   - verificado_id: bool (optional)
+    //   - fecha_registro: timestamp (optional)
+    //   - bio: string (optional)
+    //   - especialidad: string (optional)
+    //   - precio_hora: number (optional)
+    //   - avatar: string (optional)
+    //   - github_url: string (optional, uri format)
+    //   - youtube_url: string (optional, uri format)
+    //   - calificacion_avg: number (optional)
+    //
+    // Collection: portfolios
+    // Document ID: portfolioId
+    // Fields:
+    //   - usuario_id: string (required, userId)
+    //   - titulo: string (required)
+    //   - descripcion: string (optional)
+    //   - url_video: string (optional, uri format)
+    //   - url_imagen: string (optional, uri format)
+    //   - tipo: string (required, enum: ['video', 'thumbnail'])
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: contracts
+    // Document ID: contractId
+    // Fields:
+    //   - cliente_id: string (required, userId)
+    //   - profesional_id: string (required, userId)
+    //   - monto_total: number (required)
+    //   - metodo_pago: string (optional, enum: ['tarjeta', 'paypal', 'transferencia'])
+    //   - estado: string (required, enum: ['pendiente', 'pagado', 'en_proceso', 'entregado'])
+    //   - fecha_contrato: timestamp (optional)
+    //
+    // Collection: messages
+    // Document ID: messageId
+    // Fields:
+    //   - emisor_id: string (required, userId)
+    //   - receptor_id: string (required, userId)
+    //   - mensaje: string (required)
+    //   - leido: bool (optional)
+    //   - enviado_el: timestamp (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['nombre_completo', 'email', 'rol', 'verificado_id', 'fecha_registro', 'bio', 'especialidad', 'precio_hora', 'avatar', 'github_url', 'youtube_url', 'calificacion_avg']) &&
+             data.nombre_completo is string && data.nombre_completo.size() > 0 && data.nombre_completo.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.rol in ['editor', 'miniaturero', 'youtuber'];
+    }
+
+    function isValidPortfolio(data) {
+      return hasOnlyAllowedFields(['usuario_id', 'titulo', 'descripcion', 'url_video', 'url_imagen', 'tipo', 'createdAt']) &&
+             data.usuario_id is string &&
+             data.titulo is string && data.titulo.size() > 0 && data.titulo.size() < 150 &&
+             data.tipo in ['video', 'thumbnail'];
+    }
+
+    function isValidContract(data) {
+      return hasOnlyAllowedFields(['cliente_id', 'profesional_id', 'monto_total', 'metodo_pago', 'estado', 'fecha_contrato']) &&
+             data.cliente_id is string &&
+             data.profesional_id is string &&
+             data.monto_total is number && data.monto_total >= 0 &&
+             data.estado in ['pendiente', 'pagado', 'en_proceso', 'entregado'];
+    }
+
+    function isValidMessage(data) {
+      return hasOnlyAllowedFields(['emisor_id', 'receptor_id', 'mensaje', 'leido', 'enviado_el']) &&
+             data.emisor_id is string &&
+             data.receptor_id is string &&
+             data.mensaje is string && data.mensaje.size() > 0 && data.mensaje.size() < 5000;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+    }
+
+    match /portfolios/{portfolioId} {
+      allow read: if true; // Publicly readable portfolios
+      allow create: if isAuthenticated() && isOwner(request.resource.data.usuario_id) && isValidPortfolio(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(resource.data.usuario_id) && isValidPortfolio(request.resource.data);
+      allow delete: if isAuthenticated() && isOwner(resource.data.usuario_id);
+    }
+
+    match /contracts/{contractId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.cliente_id) || isOwner(resource.data.profesional_id));
+      allow create: if isAuthenticated() && isOwner(request.resource.data.cliente_id) && isValidContract(request.resource.data);
+      allow update: if isAuthenticated() && (isOwner(resource.data.cliente_id) || isOwner(resource.data.profesional_id)) && isValidContract(request.resource.data);
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.emisor_id) || isOwner(resource.data.receptor_id));
+      allow create: if isAuthenticated() && isOwner(request.resource.data.emisor_id) && isValidMessage(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(resource.data.receptor_id) && hasOnlyAllowedFields(['leido']) && request.resource.data.leido is bool;
+    }
+  }
+}
